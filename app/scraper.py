@@ -26,21 +26,21 @@ def create_driver(driver_path):
     chrome_options.add_experimental_option("useAutomationExtension", False)
 
     # 3. 헤드리스 모드일 경우 UI 렌더링 보완 옵션 (선택)
-    options.add_argument("--headless=new")
-    options.add_argument("--disable-gpu")
-    options.add_argument("--no-sandbox")
-    options.add_argument("--disable-blink-features=AutomationControlled")
+    chrome_options.add_argument("--headless=new")
+    chrome_options.add_argument("--disable-gpu")
+    chrome_options.add_argument("--no-sandbox")
+    chrome_options.add_argument("--disable-blink-features=AutomationControlled")
 
     # 6. 창 사이즈 설정 (필수는 아니나 headless일 때 필요)
-    options.add_argument("window-size=1920x1080")
+    chrome_options.add_argument("window-size=1920x1080")
 
     # 4. 팝업, 번역, 확장 프로그램 비활성화
-    options.add_argument("--disable-popup-blocking")
-    options.add_argument("--disable-extensions")
-    options.add_argument("--disable-translate")
+    chrome_options.add_argument("--disable-popup-blocking")
+    chrome_options.add_argument("--disable-extensions")
+    chrome_options.add_argument("--disable-translate")
 
     # 5. 디버깅 포트 제거
-    options.add_argument("--remote-debugging-port=0")
+    chrome_options.add_argument("--remote-debugging-port=0")
 
     service = Service(executable_path=DRIVER_PATH)
     driver = webdriver.Chrome(service=service, options=chrome_options)
@@ -65,7 +65,13 @@ def get_last_loaded_video_number(driver):
         return video_numbers[-1].text.strip()
     return None
 
-def scrape_playlist(url, driver_path):
+def scrape_playlist(url, driver_path, log_callback, text_widget):
+    def log(msg):
+        if log_callback:
+            log_callback(text_widget, msg)
+        else:
+            print(msg)  # fallback
+
     driver = create_driver(driver_path)
     playlist_data = {
         'channel_title': '(various artist)',
@@ -73,12 +79,13 @@ def scrape_playlist(url, driver_path):
         'video_count': 0,
         'video_data': []
     }
+
     try:
         driver.get(url)
         time.sleep(2)
 
-        print("페이지 제목:", driver.title)
-        print("현재 URL:", driver.current_url)
+        log("페이지 제목: " + driver.title)
+        log("현재 URL: " + driver.current_url)
 
         video_count = 0
 
@@ -110,22 +117,22 @@ def scrape_playlist(url, driver_path):
             playlist_data['channel_title'] = channel_title
             playlist_data['playlist_title'] = playlist_title
             playlist_data['video_count'] = video_count
-            print(f"채널명: {channel_title}, 플레이리스트: {playlist_title}, 비디오 개수: {video_count}")
+            log(f"채널명: {channel_title}, 플레이리스트: {playlist_title}, 비디오 개수: {video_count}")
         else:
-            print("플레이리스트 정보를 가져오는데 실패했습니다.")
+            log("플레이리스트 정보를 가져오는데 실패했습니다.")
 
         if video_count is None:
             previous_loaded_number = 0
             while True:
                 current_loaded_number = get_last_loaded_video_number(driver)
-                print(f"가장 마지막 로드된 비디오 번호: {current_loaded_number}")
+                log(f"가장 마지막 로드된 비디오 번호: {current_loaded_number}")
 
                 if current_loaded_number is None:
-                    print("더 이상 로드된 비디오 번호가 없습니다. 스크롤을 멈춥니다.")
+                    log("더 이상 로드된 비디오 번호가 없습니다. 스크롤을 멈춥니다.")
                     break
 
                 if int(current_loaded_number) == int(previous_loaded_number):
-                    print("모든 비디오를 로드하는데 실패했습니다.")
+                    log("모든 비디오를 로드하는데 실패했습니다.")
                     break
 
                 previous_loaded_number = int(current_loaded_number)
@@ -135,18 +142,18 @@ def scrape_playlist(url, driver_path):
             previous_loaded_number = 0
             while True:
                 current_loaded_number = get_last_loaded_video_number(driver)
-                print(f"가장 마지막 로드된 비디오 번호: {current_loaded_number}")
+                log(f"가장 마지막 로드된 비디오 번호: {current_loaded_number}")
 
                 if current_loaded_number is None:
-                    print("더 이상 로드된 비디오 번호가 없습니다. 스크롤을 멈춥니다.")
+                    log("더 이상 로드된 비디오 번호가 없습니다. 스크롤을 멈춥니다.")
                     break
 
                 if int(current_loaded_number) >= int(video_count):
-                    print("모든 비디오가 로드되었습니다.")
+                    log("모든 비디오가 로드되었습니다.")
                     break
 
                 if int(current_loaded_number) == int(previous_loaded_number):
-                    print("모든 비디오를 로드하는데 실패했습니다.")
+                    log("모든 비디오를 로드하는데 실패했습니다.")
                     break
 
                 previous_loaded_number = int(current_loaded_number)
@@ -165,14 +172,14 @@ def scrape_playlist(url, driver_path):
         playlist_renderer = soup.select_one("ytd-browse[page-subtype='playlist'] ytd-playlist-video-list-renderer")
 
         if not playlist_renderer:
-            print("플레이리스트 영역을 찾지 못했습니다.")
+            log("플레이리스트 영역을 찾지 못했습니다.")
         else:
             contents = playlist_renderer.select_one("#contents")
             if not contents:
-                print("#contents 영역을 찾지 못했습니다.")
+                log("#contents 영역을 찾지 못했습니다.")
             else:
                 video_elements = contents.select(".ytd-playlist-video-list-renderer")
-                print(f"총 {len(video_elements)}개의 비디오 요소 발견")
+                log(f"총 {len(video_elements)}개의 비디오 요소 발견")
 
                 for idx, video in enumerate(video_elements, start=1):
                     # duration 추출 (예시: #overlays badge-shape div)
@@ -188,7 +195,7 @@ def scrape_playlist(url, driver_path):
                     # 혹은, video.select_one("ytd-video-meta-block #metadata #byline-container yt-formatted-string#video-info span.style-scope")
                     views = video_info.get_text(strip=True).split(' ')[0] if video_info else "조회수 없음"
 
-                    print(f"{idx}번째 비디오 - 제목: {title}, 길이: {duration}, 조회수: {views}")
+                    log(f"[{idx}/{len(video_elements)}] - 제목: {title} / 길이: {duration} / 조회수: {views}")
 
                     playlist_data['video_data'].append({
                         'no.': idx,
@@ -196,9 +203,11 @@ def scrape_playlist(url, driver_path):
                         'duration': duration,
                         'viewership': views
                     })
+
+                log(f"최종결과 - 총 비디오: {playlist_data["video_count"]} / 추출 시도: {len(video_elements)} / 추출 완료: {len(playlist_data["video_data"])}")
+                log("CSV 다운로드 준비가 완료되었습니다.")
     except Exception as e:
-        print("에러 발생:", e)
+        log(f"에러 발생: {str(e)}")
     finally:
-        input("input enter")
         driver.quit()
         return playlist_data

@@ -8,6 +8,11 @@ from app.utils import is_valid_url
 # 전역 변수로 데이터를 저장
 scraped_video_data = []
 
+def log_callback(text_widget, msg):
+    # 예시: 텍스트 위젯에 로그 메시지 추가 (PyQt QTextEdit, Tkinter Text 등)
+    text_widget.insert(tk.END, msg + '\n')
+    text_widget.see(tk.END)  # 스크롤을 항상 마지막으로
+
 def start_scraping(url_entry, driver_path_entry, text_widget, save_button):
     global scraped_video_data
 
@@ -20,20 +25,16 @@ def start_scraping(url_entry, driver_path_entry, text_widget, save_button):
 
     text_widget.delete('1.0', tk.END)
     text_widget.insert(tk.END, "스크래핑 시작...\n")
+    text_widget.see(tk.END)
 
     # 스크래핑 수행
-    scraped_video_data = scrape_playlist(url, driver_path)
+    scraped_video_data = scrape_playlist(url, driver_path, log_callback, text_widget)
 
     if not scraped_video_data['video_data']:
         text_widget.insert(tk.END, "스크래핑 결과가 없습니다.\n")
+        text_widget.see(tk.END)
         save_button.config(state=tk.DISABLED)
         return
-
-    for video in scraped_video_data['video_data']:
-        text_widget.insert(
-            tk.END,
-            f"{video['no.']}. {video['title']} ({video['duration']}) 조회수: {video['viewership']}\n"
-        )
 
     # 저장 버튼 활성화
     save_button.config(state=tk.NORMAL)
@@ -159,9 +160,20 @@ def initialize_gui():
     url_entry = tk.Entry(root)
     url_entry.pack(padx=10, pady=5, fill=tk.X)
 
-    # 출력 텍스트 박스
-    text_widget = tk.Text(root, height=20)  # width 빼고 높이만 지정
-    text_widget.pack(fill=tk.BOTH, expand=True, padx=0, pady=0)
+    # 출력 텍스트 박스 + 스크롤바 프레임
+    text_frame = tk.Frame(root)
+    text_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
+
+    # 스크롤바 생성
+    scrollbar = tk.Scrollbar(text_frame)
+    scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+
+    # 텍스트 위젯 생성
+    text_widget = tk.Text(text_frame, height=20, yscrollcommand=scrollbar.set)
+    text_widget.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+
+    # 스크롤바에 텍스트 위젯 연결
+    scrollbar.config(command=text_widget.yview)
 
     # 버튼 프레임 생성 — 버튼들을 가로로 나란히 배치하기 위한 컨테이너
     button_frame = tk.Frame(root)

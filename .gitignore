@@ -1,8 +1,8 @@
-build
-dist
-/driver
-venv
-venv-12
+build/
+dist/
+driver/
+venv/
+venv-12/
 *.spec
 .DS_Store
 *__pycache__*
