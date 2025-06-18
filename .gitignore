@@ -1,8 +1,10 @@
+.DS_Store
+*__pycache__*
+*.spec
 build/
 dist/
 driver/
+error/
+download/
 venv/
 venv-12/
-*.spec
-.DS_Store
-*__pycache__*

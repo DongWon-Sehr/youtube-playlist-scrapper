@@ -1,4 +1,7 @@
 import time
+import traceback
+import datetime
+import os
 from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.chrome.service import Service
@@ -10,7 +13,7 @@ from app.utils import resource_path
 
 SCROLL_PAUSE_TIME = 1.0
 
-def create_driver(driver_path):
+def create_driver(driver_path, headless):
     DRIVER_PATH = resource_path(driver_path)
     chrome_options = Options()
     
@@ -25,14 +28,15 @@ def create_driver(driver_path):
     chrome_options.add_experimental_option("excludeSwitches", ["enable-automation"])
     chrome_options.add_experimental_option("useAutomationExtension", False)
 
-    # 3. 헤드리스 모드일 경우 UI 렌더링 보완 옵션 (선택)
-    chrome_options.add_argument("--headless=new")
-    chrome_options.add_argument("--disable-gpu")
-    chrome_options.add_argument("--no-sandbox")
-    chrome_options.add_argument("--disable-blink-features=AutomationControlled")
+    if (headless == True):
+        # 3. 헤드리스 모드일 경우 UI 렌더링 보완 옵션 (선택)
+        chrome_options.add_argument("--headless=new")
+        chrome_options.add_argument("--disable-gpu")
+        chrome_options.add_argument("--no-sandbox")
+        chrome_options.add_argument("--disable-blink-features=AutomationControlled")
 
-    # 6. 창 사이즈 설정 (필수는 아니나 headless일 때 필요)
-    chrome_options.add_argument("window-size=1920x1080")
+        # 6. 창 사이즈 설정 (필수는 아니나 headless일 때 필요)
+        chrome_options.add_argument("window-size=1920x1080")
 
     # 4. 팝업, 번역, 확장 프로그램 비활성화
     chrome_options.add_argument("--disable-popup-blocking")
@@ -59,28 +63,61 @@ def create_driver(driver_path):
 
     return driver
 
+def save_error_page(driver, log):
+    """
+    에러 발생 시 현재 페이지의 HTML 소스와 스크린샷을 error_pages 디렉토리에 저장합니다.
+    
+    Args:
+        driver (webdriver): Selenium 드라이버 인스턴스
+        log (function): 로그 출력 함수 (예: log("메시지"))
+    """
+    try:
+        # 저장 디렉토리 생성
+        current_dir = os.getcwd()
+        error_dir = os.path.join(current_dir, "error")
+        os.makedirs(error_dir, exist_ok=True)
+
+        # 타임스탬프 기반 파일명
+        timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+        html_path = os.path.join(error_dir, f"error_page_{timestamp}.html")
+        screenshot_path = os.path.join(error_dir, f"error_page_{timestamp}.png")
+
+        # HTML 저장
+        with open(html_path, "w", encoding="utf-8") as f:
+            f.write(driver.page_source)
+        log(f"[에러 HTML 저장됨] {html_path}")
+
+        # 스크린샷 저장
+        if driver.save_screenshot(screenshot_path):
+            log(f"[스크린샷 저장됨] {screenshot_path}")
+        else:
+            log("[스크린샷 저장 실패]")
+
+    except Exception as inner_e:
+        log(f"[디버깅 파일 저장 중 오류] {inner_e}")
+
 def get_last_loaded_video_number(driver):
     video_numbers = driver.find_elements(By.CSS_SELECTOR, 'yt-formatted-string#index.style-scope.ytd-playlist-video-renderer')
     if video_numbers:
         return video_numbers[-1].text.strip()
     return None
 
-def scrape_playlist(url, driver_path, log_callback, text_widget):
+def scrape_playlist(url, driver_path, log_callback, text_widget, headless = True):
     def log(msg):
         if log_callback:
             log_callback(text_widget, msg)
         else:
             print(msg)  # fallback
 
-    driver = create_driver(driver_path)
-    playlist_data = {
-        'channel_title': '(various artist)',
-        'playlist_title': '(untitled)',
-        'video_count': 0,
-        'video_data': []
-    }
-
     try:
+        driver = create_driver(driver_path, headless)
+        playlist_data = {
+            'channel_title': '(various artist)',
+            'playlist_title': '(untitled)',
+            'video_count': 0,
+            'video_data': []
+        }
+
         driver.get(url)
         time.sleep(2)
 
@@ -208,6 +245,11 @@ def scrape_playlist(url, driver_path, log_callback, text_widget):
                 log("CSV 다운로드 준비가 완료되었습니다.")
     except Exception as e:
         log(f"에러 발생: {str(e)}")
+        log(traceback.format_exc())
+        if 'driver' in locals():
+            save_error_page(driver, log)
+        else:
+            log("브라우저 초기화 실패")
     finally:
         driver.quit()
         return playlist_data

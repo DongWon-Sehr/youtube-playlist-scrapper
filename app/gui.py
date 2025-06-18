@@ -13,7 +13,7 @@ def log_callback(text_widget, msg):
     text_widget.insert(tk.END, msg + '\n')
     text_widget.see(tk.END)  # 스크롤을 항상 마지막으로
 
-def start_scraping(url_entry, driver_path_entry, text_widget, save_button):
+def start_scraping(url_entry, driver_path_entry, headless, text_widget, save_button):
     global scraped_video_data
 
     url = url_entry.get()
@@ -28,7 +28,7 @@ def start_scraping(url_entry, driver_path_entry, text_widget, save_button):
     text_widget.see(tk.END)
 
     # 스크래핑 수행
-    scraped_video_data = scrape_playlist(url, driver_path, log_callback, text_widget)
+    scraped_video_data = scrape_playlist(url, driver_path, log_callback, text_widget, headless)
 
     if not scraped_video_data['video_data']:
         text_widget.insert(tk.END, "스크래핑 결과가 없습니다.\n")
@@ -49,10 +49,7 @@ def save_csv():
     # 현재 작업 디렉토리
     current_dir = os.getcwd()
     download_dir = os.path.join(current_dir, "download")
-    
-    # download 폴더가 없으면 생성
-    if not os.path.exists(download_dir):
-        os.makedirs(download_dir)
+    os.makedirs(download_dir, exist_ok=True)
     
     # 기본 파일명 설정
     channel_title = scraped_video_data['channel_title']
@@ -155,6 +152,17 @@ def initialize_gui():
     # 초기 상태 맞춤 호출
     on_driver_option_changed()
 
+    # 여기서 headless 옵션 라디오 버튼 추가
+    headless_option = tk.BooleanVar(value=True)  # 초기값 True = 비활성화 (headless 사용)
+
+    headless_frame = tk.Frame(root)
+    headless_frame.pack(padx=10, pady=(5, 10), fill=tk.X)
+
+    tk.Label(headless_frame, text="브라우저 숨기기:").pack(side=tk.LEFT)
+
+    tk.Radiobutton(headless_frame, text="숨기기", variable=headless_option, value=True).pack(side=tk.LEFT, padx=5)
+    tk.Radiobutton(headless_frame, text="보이기", variable=headless_option, value=False).pack(side=tk.LEFT, padx=5)
+
     # URL 입력
     tk.Label(root, text="플레이리스트 URL:").pack(padx=10, pady=(10,0))
     url_entry = tk.Entry(root)
@@ -183,7 +191,7 @@ def initialize_gui():
     scrape_button = tk.Button(
         button_frame,
         text="스크래핑 시작",
-        command=lambda: start_scraping(url_entry, driver_path_entry, text_widget, save_button)
+        command=lambda: start_scraping(url_entry, driver_path_entry, headless_option.get(), text_widget, save_button)
     )
     scrape_button.pack(side='left', padx=10)
 
