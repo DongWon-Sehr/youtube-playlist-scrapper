@@ -13,13 +13,50 @@ SCROLL_PAUSE_TIME = 1.0
 def create_driver(driver_path):
     DRIVER_PATH = resource_path(driver_path)
     chrome_options = Options()
-    chrome_options.add_argument("--headless=new")
-    chrome_options.add_argument("--no-sandbox")
-    chrome_options.add_argument("--disable-dev-shm-usage")
-    chrome_options.add_argument("--disable-gpu")
-    chrome_options.add_argument("--window-size=1920,1080")
+    
+    # 1. 사용자 에이전트 변경
+    chrome_options.add_argument(
+        "user-agent=Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
+        "AppleWebKit/537.36 (KHTML, like Gecko) "
+        "Chrome/123.0.0.0 Safari/537.36"
+    )
+
+    # 2. 자동화 티 제거
+    chrome_options.add_experimental_option("excludeSwitches", ["enable-automation"])
+    chrome_options.add_experimental_option("useAutomationExtension", False)
+
+    # 3. 헤드리스 모드일 경우 UI 렌더링 보완 옵션 (선택)
+    options.add_argument("--headless=new")
+    options.add_argument("--disable-gpu")
+    options.add_argument("--no-sandbox")
+    options.add_argument("--disable-blink-features=AutomationControlled")
+
+    # 6. 창 사이즈 설정 (필수는 아니나 headless일 때 필요)
+    options.add_argument("window-size=1920x1080")
+
+    # 4. 팝업, 번역, 확장 프로그램 비활성화
+    options.add_argument("--disable-popup-blocking")
+    options.add_argument("--disable-extensions")
+    options.add_argument("--disable-translate")
+
+    # 5. 디버깅 포트 제거
+    options.add_argument("--remote-debugging-port=0")
+
     service = Service(executable_path=DRIVER_PATH)
     driver = webdriver.Chrome(service=service, options=chrome_options)
+
+    # 자동화 탐지 제거 (JS)
+    driver.execute_cdp_cmd(
+        'Page.addScriptToEvaluateOnNewDocument',
+        {
+            'source': '''
+                Object.defineProperty(navigator, 'webdriver', {
+                    get: () => undefined
+                });
+            '''
+        }
+    )
+
     return driver
 
 def get_last_loaded_video_number(driver):
@@ -162,5 +199,6 @@ def scrape_playlist(url, driver_path):
     except Exception as e:
         print("에러 발생:", e)
     finally:
+        input("input enter")
         driver.quit()
         return playlist_data
