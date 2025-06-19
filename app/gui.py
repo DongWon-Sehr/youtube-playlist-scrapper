@@ -93,7 +93,7 @@ def initialize_gui():
     global driver_option, driver_path_entry, driver_select_button
 
     root = tk.Tk()
-    root.title("YouTube Playlist Scraper")
+    root.title("PoPo")
 
     # 라디오 버튼 변수
     driver_option = tk.StringVar(value="intel")  # 기본값 Mac (Apple Chip)
@@ -111,7 +111,7 @@ def initialize_gui():
     driver_frame.pack(padx=10, pady=5, fill=tk.X)
 
     driver_path_entry = tk.Entry(driver_frame)
-    driver_path_entry.insert(0, "./app/driver/chromedriver-137-mac-intel")  # 기본값 apple chip 경로
+    driver_path_entry.insert(0, "./app/drivers/chromedriver-137-mac-intel")  # 기본값 apple chip 경로
     driver_path_entry.pack(side=tk.LEFT, fill=tk.X, expand=True)
 
     driver_select_button = tk.Button(
@@ -130,14 +130,14 @@ def initialize_gui():
             driver_path_entry.config(state=tk.NORMAL)
             driver_select_button.config(state=tk.NORMAL)
             driver_path_entry.delete(0, tk.END)
-            driver_path_entry.insert(0, "./app/driver/chromedriver-137-mac-apple")
+            driver_path_entry.insert(0, "./app/drivers/chromedriver-137-mac-apple")
             driver_path_entry.config(state=tk.DISABLED)
             driver_select_button.config(state=tk.DISABLED, disabledforeground='gray30')
         elif selected == "intel":
             driver_path_entry.config(state=tk.NORMAL)
             driver_select_button.config(state=tk.NORMAL)
             driver_path_entry.delete(0, tk.END)
-            driver_path_entry.insert(0, "./app/driver/chromedriver-137-mac-intel")
+            driver_path_entry.insert(0, "./app/drivers/chromedriver-137-mac-intel")
             driver_path_entry.config(state=tk.DISABLED)
             driver_select_button.config(state=tk.DISABLED, disabledforeground='gray30')
         else:  # custom
@@ -164,7 +164,7 @@ def initialize_gui():
     tk.Radiobutton(headless_frame, text="보이기", variable=headless_option, value=False).pack(side=tk.LEFT, padx=5)
 
     # URL 입력
-    tk.Label(root, text="플레이리스트 URL:").pack(padx=10, pady=(10,0))
+    tk.Label(root, text="Youtube 플레이리스트 URL:").pack(padx=10, pady=(10,0))
     url_entry = tk.Entry(root)
     url_entry.pack(padx=10, pady=5, fill=tk.X)
 
@@ -190,7 +190,7 @@ def initialize_gui():
     # 스크래핑 시작 버튼
     scrape_button = tk.Button(
         button_frame,
-        text="스크래핑 시작",
+        text="데이터 추출하기",
         command=lambda: start_scraping(url_entry, driver_path_entry, headless_option.get(), text_widget, save_button)
     )
     scrape_button.pack(side='left', padx=10)
