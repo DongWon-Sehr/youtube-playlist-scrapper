@@ -2,6 +2,8 @@ import time
 import traceback
 import datetime
 import os
+import re
+import sys
 from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.chrome.service import Service
@@ -12,10 +14,20 @@ from bs4 import BeautifulSoup
 from app.utils import resource_path
 
 SCROLL_PAUSE_TIME = 1.0
-CHANNEL_DELIMITER_EN = "by "
-CHANNEL_DELIMITER_KR = "게시자: "
-VIEWERSHIP_DELIMITER_EN = " views"
-VIEWERSHIP_DELIMITER_KR = "조회수 "
+VIDEO_EN = "VIDEO_EN"
+VIDEO_KR = "VIDEO_KR"
+CHANNEL_EN = "CHANNEL_EN"
+CHANNEL_KR = "CHANNEL_KR"
+VIEWERSHIP_EN = "VIEWERSHIP_EN"
+VIEWERSHIP_KR = "VIEWERSHIP_KR"
+search_patterns = {
+    VIDEO_EN: re.compile(r"(\d+)\svideos"),
+    VIDEO_KR: re.compile(r"동영상\s(\d+)개"),
+    CHANNEL_EN: re.compile(r"by\s(.+)"),
+    CHANNEL_KR: re.compile(r"게시자:\s(.+)"),
+    VIEWERSHIP_EN: re.compile(r"(.+)\sviews"),
+    VIEWERSHIP_KR: re.compile(r"조회수\s(.+)회"),
+}
 
 def create_driver(driver_path, headless):
     DRIVER_PATH = resource_path(driver_path)
@@ -83,8 +95,8 @@ def save_error_page(driver, log):
     """
     try:
         # 저장 디렉토리 생성
-        current_dir = os.getcwd()
-        error_dir = os.path.join(current_dir, "error")
+        app_path = os.path.dirname(os.path.realpath(sys.argv[0]))
+        error_dir = os.path.join(app_path, "error")
         os.makedirs(error_dir, exist_ok=True)
 
         # 타임스탬프 기반 파일명
@@ -156,21 +168,31 @@ def scrape_playlist(url, driver_path, log_callback, text_widget, headless = True
                 channel_text = channel_title_a.get_text(strip=True) if channel_title_a else None
 
                 if channel_text:
-                    if CHANNEL_DELIMITER_EN in channel_text:
-                        channel_title = channel_text.split(CHANNEL_DELIMITER_EN)[1]
-                    elif CHANNEL_DELIMITER_KR in channel_text:
-                        channel_title = channel_text.split(CHANNEL_DELIMITER_KR)[1]
+                    if (matches := search_patterns[CHANNEL_EN].match(channel_text)):
+                        channel_title = matches.group(1).strip()
+                    elif (matches := search_patterns[CHANNEL_KR].match(channel_text)):
+                        channel_title = matches.group(1).strip()
                     else:
                         parts = channel_text.split(" ")
                         if len(parts) > 1:
-                            channel_title = " ".join(parts[1:])
+                            channel_title = " ".join(parts[1:]).strip()
                         else:
-                            channel_title = channel_text
+                            channel_title = channel_text.strip()
                 else:
                     channel_title = "(various artist)"
 
                 playlist_meta_spans = inner_elements[1].select('span.yt-content-metadata-view-model-wiz__metadata-text')
-                video_count = int(playlist_meta_spans[1].get_text(strip=True).split(' ')[0]) if len(playlist_meta_spans) > 1 else 0
+                video_count_text =playlist_meta_spans[1].get_text(strip=True) if len(playlist_meta_spans) > 1 else None
+
+                if video_count_text:
+                    if (matches := search_patterns[VIDEO_EN].match(video_count_text)):
+                        video_count = int(matches.group(1).strip())
+                    elif (matches := search_patterns[VIDEO_KR].match(video_count_text)):
+                        video_count = int(matches.group(1).strip())
+                    else:
+                        video_count = 0
+                else:
+                    video_count = None
             else:
                 channel_title = "(various artist)"
                 video_count = None
@@ -255,10 +277,10 @@ def scrape_playlist(url, driver_path, log_callback, text_widget, headless = True
                     video_info = video.select_one("ytd-video-meta-block #metadata #byline-container yt-formatted-string#video-info span")
                     viewership_text = video_info.get_text(strip=True) if video_info else None
                     if viewership_text:
-                        if VIEWERSHIP_DELIMITER_EN in viewership_text:
-                            viewership = viewership_text.split(VIEWERSHIP_DELIMITER_EN)[0]
-                        elif VIEWERSHIP_DELIMITER_KR in viewership_text:
-                            viewership = viewership_text.split(VIEWERSHIP_DELIMITER_KR)[1]
+                        if (matches := search_patterns[VIEWERSHIP_EN].match(viewership_text)):
+                            viewership = matches.group(1).strip()
+                        elif (matches := search_patterns[VIEWERSHIP_KR].match(viewership_text)):
+                            viewership = matches.group(1).strip()
                         else:
                             viewership = viewership_text
                     else:
@@ -273,7 +295,7 @@ def scrape_playlist(url, driver_path, log_callback, text_widget, headless = True
                         'viewership': viewership
                     })
 
-                log(f"최종결과 - 총 비디오: {playlist_data["video_count"]} / 추출 시도: {len(video_elements)} / 추출 완료: {len(playlist_data["video_data"])}")
+                log(f'최종결과 - 총 비디오: {playlist_data["video_count"]} / 추출 시도: {len(video_elements)} / 추출 완료: {len(playlist_data["video_data"])}')
                 log("CSV 다운로드 준비가 완료되었습니다.")
     except Exception as e:
         log(f"에러 발생: {str(e)}")
