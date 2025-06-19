@@ -12,6 +12,10 @@ from bs4 import BeautifulSoup
 from app.utils import resource_path
 
 SCROLL_PAUSE_TIME = 1.0
+CHANNEL_DELIMITER_EN = "by "
+CHANNEL_DELIMITER_KR = "게시자: "
+VIEWERSHIP_DELIMITER_EN = " views"
+VIEWERSHIP_DELIMITER_KR = "조회수 "
 
 def create_driver(driver_path, headless):
     DRIVER_PATH = resource_path(driver_path)
@@ -24,34 +28,37 @@ def create_driver(driver_path, headless):
         "Chrome/123.0.0.0 Safari/537.36"
     )
 
-    # 2. 자동화 티 제거
+    # 2. 브라우저 언어 영어로 고정
+    chrome_options.add_argument("--lang=en-US")
+
+    # 3. 자동화 티 제거
     chrome_options.add_experimental_option("excludeSwitches", ["enable-automation"])
     chrome_options.add_experimental_option("useAutomationExtension", False)
 
     if (headless == True):
-        # 3. 헤드리스 모드일 경우 UI 렌더링 보완 옵션 (선택)
+        # 4. 헤드리스 모드일 경우 UI 렌더링 보완 옵션 (선택)
         chrome_options.add_argument("--headless=new")
         chrome_options.add_argument("--disable-gpu")
         chrome_options.add_argument("--no-sandbox")
         chrome_options.add_argument("--disable-blink-features=AutomationControlled")
 
-        # 6. 창 사이즈 설정 (필수는 아니나 headless일 때 필요)
+        # 5. 창 사이즈 설정 (필수는 아니나 headless일 때 필요)
         chrome_options.add_argument("window-size=1920x1080")
 
-    # 4. 팝업, 번역, 확장 프로그램 비활성화
+    # 6. 팝업, 번역, 확장 프로그램 비활성화
     chrome_options.add_argument("--disable-popup-blocking")
     chrome_options.add_argument("--disable-extensions")
     chrome_options.add_argument("--disable-translate")
 
-    # 5. 디버깅 포트 제거
+    # 7. 디버깅 포트 제거
     chrome_options.add_argument("--remote-debugging-port=0")
-
-    # 6. 브라우저 언어 영어로 고정
-    chrome_options.add_argument("--lang=en-US")
 
     service = Service(executable_path=DRIVER_PATH)
     driver = webdriver.Chrome(service=service, options=chrome_options)
 
+    # Accept-Language 헤더 강제 설정
+    driver.execute_cdp_cmd('Network.setExtraHTTPHeaders', {'headers': {'Accept-Language': 'en-US,en;q=0.9'}})
+    
     # 자동화 탐지 제거 (JS)
     driver.execute_cdp_cmd(
         'Page.addScriptToEvaluateOnNewDocument',
@@ -146,7 +153,21 @@ def scrape_playlist(url, driver_path, log_callback, text_widget, headless = True
 
             if len(inner_elements) > 1:
                 channel_title_a = inner_elements[0].select_one('.yt-core-attributed-string__link')
-                channel_title = channel_title_a.get_text(strip=True).split('by ')[1] if channel_title_a else "(various artist)"
+                channel_text = channel_title_a.get_text(strip=True) if channel_title_a else None
+
+                if channel_text:
+                    if CHANNEL_DELIMITER_EN in channel_text:
+                        channel_title = channel_text.split(CHANNEL_DELIMITER_EN)[1]
+                    elif CHANNEL_DELIMITER_KR in channel_text:
+                        channel_title = channel_text.split(CHANNEL_DELIMITER_KR)[1]
+                    else:
+                        parts = channel_text.split(" ")
+                        if len(parts) > 1:
+                            channel_title = " ".join(parts[1:])
+                        else:
+                            channel_title = channel_text
+                else:
+                    channel_title = "(various artist)"
 
                 playlist_meta_spans = inner_elements[1].select('span.yt-content-metadata-view-model-wiz__metadata-text')
                 video_count = int(playlist_meta_spans[1].get_text(strip=True).split(' ')[0]) if len(playlist_meta_spans) > 1 else 0
@@ -232,16 +253,24 @@ def scrape_playlist(url, driver_path, log_callback, text_widget, headless = True
 
                     # 조회수 추출 (yt-formatted-string#video-info > span:first-child, 보통 "265K views" 형태)
                     video_info = video.select_one("ytd-video-meta-block #metadata #byline-container yt-formatted-string#video-info span")
-                    # 혹은, video.select_one("ytd-video-meta-block #metadata #byline-container yt-formatted-string#video-info span.style-scope")
-                    views = video_info.get_text(strip=True).split(' ')[0] if video_info else "조회수 없음"
+                    viewership_text = video_info.get_text(strip=True) if video_info else None
+                    if viewership_text:
+                        if VIEWERSHIP_DELIMITER_EN in viewership_text:
+                            viewership = viewership_text.split(VIEWERSHIP_DELIMITER_EN)[0]
+                        elif VIEWERSHIP_DELIMITER_KR in viewership_text:
+                            viewership = viewership_text.split(VIEWERSHIP_DELIMITER_KR)[1]
+                        else:
+                            viewership = viewership_text
+                    else:
+                        viewership = "조회수 없음"
 
-                    log(f"[{idx}/{len(video_elements)}] - 제목: {title} / 길이: {duration} / 조회수: {views}")
+                    log(f"[{idx}/{len(video_elements)}] - 제목: {title} / 길이: {duration} / 조회수: {viewership}")
 
                     playlist_data['video_data'].append({
                         'no.': idx,
                         'title': title,
                         'duration': duration,
-                        'viewership': views
+                        'viewership': viewership
                     })
 
                 log(f"최종결과 - 총 비디오: {playlist_data["video_count"]} / 추출 시도: {len(video_elements)} / 추출 완료: {len(playlist_data["video_data"])}")
