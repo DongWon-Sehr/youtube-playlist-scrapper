@@ -12,6 +12,7 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from bs4 import BeautifulSoup
 from app.utils import resource_path
+from app.utils import ROOT_DIR
 
 SCROLL_PAUSE_TIME = 1.0
 VIDEO_EN = "VIDEO_EN"
@@ -95,8 +96,7 @@ def save_error_page(driver, log):
     """
     try:
         # 저장 디렉토리 생성
-        app_path = os.path.dirname(os.path.realpath(sys.argv[0]))
-        error_dir = os.path.join(app_path, "error")
+        error_dir = os.path.join(ROOT_DIR, "errors")
         os.makedirs(error_dir, exist_ok=True)
 
         # 타임스탬프 기반 파일명

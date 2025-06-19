@@ -1,6 +1,8 @@
 import os
 import sys
 
+ROOT_DIR = os.path.expanduser('~/Documents/PoPo')
+
 def resource_path(relative_path):
     if hasattr(sys, '_MEIPASS'):
         return os.path.join(sys._MEIPASS, relative_path)

@@ -4,6 +4,7 @@ import os
 from tkinter import messagebox, filedialog
 from app.scraper import scrape_playlist
 from app.utils import is_valid_url
+from app.utils import ROOT_DIR
 
 # 전역 변수로 데이터를 저장
 scraped_video_data = []
@@ -47,8 +48,7 @@ def save_csv():
         return
     
     # 현재 작업 디렉토리
-    current_dir = os.getcwd()
-    download_dir = os.path.join(current_dir, "download")
+    download_dir = os.path.join(ROOT_DIR, "downloads")
     os.makedirs(download_dir, exist_ok=True)
     
     # 기본 파일명 설정
