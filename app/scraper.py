@@ -46,6 +46,9 @@ def create_driver(driver_path, headless):
     # 5. 디버깅 포트 제거
     chrome_options.add_argument("--remote-debugging-port=0")
 
+    # 6. 브라우저 언어 영어로 고정
+    chrome_options.add_argument("--lang=en-US")
+
     service = Service(executable_path=DRIVER_PATH)
     driver = webdriver.Chrome(service=service, options=chrome_options)
 
