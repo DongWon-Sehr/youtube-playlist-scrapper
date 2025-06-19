@@ -50,7 +50,3 @@ pyinstaller --clean popo.spec
      "PoPo.dmg" \
      "dist/PoPo.app"
    ```
-
-```
-
-```
