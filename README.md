@@ -36,7 +36,7 @@ pyinstaller --clean popo.spec
 2. Create `.dmg` file
 
    ```bash
-   cd 
+   cd ${project_root_directory}
    create-dmg \
      --volname "PoPo" \
      --background "app/resources/dmg_background_right.png" \
