@@ -33,7 +33,7 @@ pyinstaller --clean popo.spec
    cd dist
    zip -r PoPo.zip PoPo.app
    ```
-2. Create `.dmg` file
+2. Create `.dmg` file (Currently doesn't work)
 
    ```bash
    cd ${project_root_directory}
