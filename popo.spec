@@ -33,7 +33,7 @@ exe = EXE(
     disable_windowed_traceback=False,
     argv_emulation=False,
     target_arch=None,
-    codesign_identity="-",
+    codesign_identity=None,
     entitlements_file=None,
 )
 app = BUNDLE(
@@ -47,5 +47,4 @@ app = BUNDLE(
         'NSDownloadsFolderUsageDescription': 'This app needs access to your Downloads folder.',
         'NSDesktopFolderUsageDescription': 'This app needs access to your Desktop folder.'
     },
-    codesign_identity="-",
 )
