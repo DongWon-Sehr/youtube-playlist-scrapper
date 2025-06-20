@@ -2,6 +2,7 @@ import tkinter as tk
 import csv
 import os
 import threading
+import subprocess
 from tkinter import messagebox, filedialog
 from app.scraper import scrape_playlist
 from app.utils import is_valid_url
@@ -51,7 +52,7 @@ def save_csv():
         messagebox.showwarning("경고", "저장할 데이터가 없습니다.")
         return
     
-    # 현재 작업 디렉토리
+    # 기본 다운로드 디렉토리
     download_dir = os.path.join(ROOT_DIR, "downloads")
     os.makedirs(download_dir, exist_ok=True)
     
@@ -74,7 +75,7 @@ def save_csv():
 
     try:
         with open(file_path, mode='w', newline='', encoding='utf-8-sig') as csvfile:
-            fieldnames = ['no.', 'title', 'duration', 'viewership']
+            fieldnames = ['No.', 'Title', 'Duration', 'Upload Date', 'Upload Channel', 'Viewership']
             writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
             writer.writeheader()
             for video in scraped_video_data['video_data']:
@@ -194,7 +195,7 @@ def initialize_gui():
     # 스크래핑 시작 버튼
     scrape_button = tk.Button(
         button_frame,
-        text="데이터 추출하기",
+        text="🔍 데이터 추출하기",
         command=lambda: start_scraping(url_entry, driver_path_entry, headless_option.get(), text_widget, save_button)
     )
     scrape_button.pack(side='left', padx=10)
@@ -202,11 +203,28 @@ def initialize_gui():
     # CSV 저장 버튼 (처음엔 비활성화)
     save_button = tk.Button(
         button_frame,
-        text="CSV 저장하기",
+        text="💾 CSV 저장하기",
         command=save_csv,
         state=tk.DISABLED,
         disabledforeground='gray30'
     )
     save_button.pack(side='left', padx=10)
+
+    # 📂 다운로드 폴더 열기 버튼
+    def open_app_folder():
+        try:
+            # 기본 다운로드 디렉토리
+            app_dir = os.path.join(ROOT_DIR)
+            os.makedirs(app_dir, exist_ok=True)
+            subprocess.Popen(["open", app_dir])  # macOS Finder에서 경로 열기
+        except Exception as e:
+            print(f"폴더 열기 실패: {e}")
+
+    open_folder_button = tk.Button(
+        button_frame,
+        text="📂 폴더 열기",
+        command=open_app_folder
+    )
+    open_folder_button.pack(side='left', padx=10)
 
     root.mainloop()

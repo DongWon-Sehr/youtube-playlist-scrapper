@@ -149,7 +149,7 @@ def scrape_playlist(url, driver_path, log_callback, text_widget, headless = True
         driver.get(url)
         host = get_host(url)
         log("현재 URL: " + driver.current_url)
-        log("페이지 제목: " + driver.title + "\n")
+        log("페이지 제목: " + driver.title)
 
         video_count = 0
 
@@ -209,7 +209,7 @@ def scrape_playlist(url, driver_path, log_callback, text_widget, headless = True
         else:
             log("플레이리스트 정보를 가져오는데 실패했습니다.")
 
-        log("\n")
+        log(" ")
         if video_count is None:
             previous_loaded_number = 0
             while True:
@@ -250,7 +250,7 @@ def scrape_playlist(url, driver_path, log_callback, text_widget, headless = True
                 time.sleep(SCROLL_PAUSE_TIME)
             
         time.sleep(SCROLL_PAUSE_TIME)
-        log("\n")
+        log(" ")
 
         WebDriverWait(driver, 10).until(
             EC.presence_of_element_located((By.CSS_SELECTOR, "ytd-browse[page-subtype='playlist'] ytd-playlist-video-list-renderer"))
@@ -346,15 +346,19 @@ def scrape_playlist(url, driver_path, log_callback, text_widget, headless = True
                     log(f"[{idx}/{len(video_elements)}] 제목: {video_title} / 길이: {duration} / 채널명: {upload_channel_title} / 조회수: {viewership} / 업로드일: {upload_date} / 링크: {video_url}")
 
                     playlist_data['video_data'].append({
-                        'no.': idx,
-                        'title': video_title,
-                        'duration': duration,
-                        'upload_date': upload_date,
-                        'upload_channel': upload_channel_title,
-                        'viewership': viewership
+                        'No.': idx,
+                        'Title': video_title,
+                        'Duration': duration,
+                        'Upload Date': upload_date,
+                        'Upload Channel': upload_channel_title,
+                        'Viewership': viewership
                     })
 
-                    sleep_duration = random.uniform(3, 8)
+                    if idx % 2 == 0:
+                        sleep_duration = random.uniform(2, 4)
+                    else:
+                        sleep_duration = random.uniform(2, 8)
+                    
                     log(f"다음 영상 추출을 {sleep_duration} 초 후에 진행합니다.")
                     time.sleep(sleep_duration)
 
