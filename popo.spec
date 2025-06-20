@@ -13,6 +13,7 @@ a = Analysis(
     excludes=[],
     noarchive=False,
     optimize=2,
+    version='2.0.0',
 )
 pyz = PYZ(a.pure)
 
@@ -35,6 +36,7 @@ exe = EXE(
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
+    version='2.0.0',
 )
 app = BUNDLE(
     exe,

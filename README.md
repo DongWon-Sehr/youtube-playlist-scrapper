@@ -39,7 +39,7 @@ pyinstaller --clean popo.spec
    cd ${project_root_directory}
    create-dmg \
      --volname "PoPo" \
-     --background "app/resources/dmg_background_right.png" \
+     --background "app/resources/dmg_background.png" \
      --window-pos 200 120 \
      --window-size 530 300 \
      --icon-size 100 \

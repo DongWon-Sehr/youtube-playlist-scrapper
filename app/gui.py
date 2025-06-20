@@ -97,7 +97,7 @@ def initialize_gui():
     global driver_option, driver_path_entry, driver_select_button
 
     root = tk.Tk()
-    root.title("PoPo")
+    root.title("PoPo v2.0.0")
 
     # 라디오 버튼 변수
     driver_option = tk.StringVar(value="intel")  # 기본값 Mac (Apple Chip)
