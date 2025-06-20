@@ -1,11 +1,15 @@
 # -*- mode: python ; coding: utf-8 -*-
+from PyInstaller.utils.hooks import collect_data_files
 
+datas = [
+    ('app/drivers', 'app/drivers'),
+] + collect_data_files('fake_useragent')
 
 a = Analysis(
     ['app/main.py'],
     pathex=['.'],
     binaries=[],
-    datas=[('app/drivers', 'app/drivers')],
+    datas=datas,
     hiddenimports=[],
     hookspath=[],
     hooksconfig={},
