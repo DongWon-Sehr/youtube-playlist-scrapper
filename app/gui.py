@@ -1,6 +1,7 @@
 import tkinter as tk
 import csv
 import os
+import threading
 from tkinter import messagebox, filedialog
 from app.scraper import scrape_playlist
 from app.utils import is_valid_url
@@ -12,7 +13,8 @@ scraped_video_data = []
 def log_callback(text_widget, msg):
     # 예시: 텍스트 위젯에 로그 메시지 추가 (PyQt QTextEdit, Tkinter Text 등)
     text_widget.insert(tk.END, msg + '\n')
-    text_widget.see(tk.END)  # 스크롤을 항상 마지막으로
+    text_widget.see(tk.END) # 스크롤을 항상 마지막으로
+    text_widget.update_idletasks() # 즉시 반영
 
 def start_scraping(url_entry, driver_path_entry, headless, text_widget, save_button):
     global scraped_video_data
@@ -28,17 +30,19 @@ def start_scraping(url_entry, driver_path_entry, headless, text_widget, save_but
     text_widget.insert(tk.END, "스크래핑 시작...\n")
     text_widget.see(tk.END)
 
-    # 스크래핑 수행
-    scraped_video_data = scrape_playlist(url, driver_path, log_callback, text_widget, headless)
+    def run_scraper():
+        global scraped_video_data
+        scraped_video_data = scrape_playlist(url, driver_path, log_callback, text_widget, headless)
 
-    if not scraped_video_data['video_data']:
-        text_widget.insert(tk.END, "스크래핑 결과가 없습니다.\n")
-        text_widget.see(tk.END)
-        save_button.config(state=tk.DISABLED)
-        return
+        if not scraped_video_data['video_data']:
+            text_widget.insert(tk.END, "스크래핑 결과가 없습니다.\n")
+            text_widget.see(tk.END)
+            save_button.config(state=tk.DISABLED)
+            return
 
-    # 저장 버튼 활성화
-    save_button.config(state=tk.NORMAL)
+        save_button.config(state=tk.NORMAL)
+    
+    threading.Thread(target=run_scraper, daemon=True).start()
 
 def save_csv():
     global scraped_video_data

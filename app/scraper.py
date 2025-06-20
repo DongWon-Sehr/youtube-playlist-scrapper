@@ -1,45 +1,51 @@
 import time
+import random
 import traceback
-import datetime
+from datetime import datetime
 import os
 import re
-import sys
 from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
+from fake_useragent import UserAgent
 from bs4 import BeautifulSoup
 from app.utils import resource_path
 from app.utils import ROOT_DIR
+from app.utils import get_host, get_full_url
 
 SCROLL_PAUSE_TIME = 1.0
+CLICK_WAIT_TIME = 0.2
 VIDEO_EN = "VIDEO_EN"
 VIDEO_KR = "VIDEO_KR"
 CHANNEL_EN = "CHANNEL_EN"
 CHANNEL_KR = "CHANNEL_KR"
 VIEWERSHIP_EN = "VIEWERSHIP_EN"
 VIEWERSHIP_KR = "VIEWERSHIP_KR"
+UPLOAD_DATE_EN = "UPLOAD_DATE_EN"
+UPLOAD_DATE_KR = "UPLOAD_DATE_KR"
 search_patterns = {
-    VIDEO_EN: re.compile(r"(\d+)\svideos"),
-    VIDEO_KR: re.compile(r"동영상\s(\d+)개"),
-    CHANNEL_EN: re.compile(r"by\s(.+)"),
-    CHANNEL_KR: re.compile(r"게시자:\s(.+)"),
-    VIEWERSHIP_EN: re.compile(r"(.+)\sviews"),
-    VIEWERSHIP_KR: re.compile(r"조회수\s(.+)회"),
+    VIDEO_EN: re.compile(r"(\d+) videos"),
+    VIDEO_KR: re.compile(r"동영상 (\d+)개"),
+    CHANNEL_EN: re.compile(r"by (.+)"),
+    CHANNEL_KR: re.compile(r"게시자: (.+)"),
+    VIEWERSHIP_EN: re.compile(r"(.+) views"),
+    VIEWERSHIP_KR: re.compile(r"조회수 (.+)회"),
+    UPLOAD_DATE_EN: re.compile(r"[A-Za-z]{3} \d{1,2}, \d{4}"),
+    UPLOAD_DATE_KR: re.compile(r"\d{4}\. \d{1,2}\. \d{1,2}\."),
 }
 
 def create_driver(driver_path, headless):
     DRIVER_PATH = resource_path(driver_path)
     chrome_options = Options()
+
+    ua = UserAgent(platforms='desktop')
+    user_agent = ua.random
     
     # 1. 사용자 에이전트 변경
-    chrome_options.add_argument(
-        "user-agent=Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
-        "AppleWebKit/537.36 (KHTML, like Gecko) "
-        "Chrome/123.0.0.0 Safari/537.36"
-    )
+    chrome_options.add_argument(f'user-agent={user_agent}')
 
     # 2. 브라우저 언어 영어로 고정
     chrome_options.add_argument("--lang=en-US")
@@ -100,7 +106,7 @@ def save_error_page(driver, log):
         os.makedirs(error_dir, exist_ok=True)
 
         # 타임스탬프 기반 파일명
-        timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         html_path = os.path.join(error_dir, f"error_page_{timestamp}.html")
         screenshot_path = os.path.join(error_dir, f"error_page_{timestamp}.png")
 
@@ -141,10 +147,9 @@ def scrape_playlist(url, driver_path, log_callback, text_widget, headless = True
         }
 
         driver.get(url)
-        time.sleep(2)
-
-        log("페이지 제목: " + driver.title)
+        host = get_host(url)
         log("현재 URL: " + driver.current_url)
+        log("페이지 제목: " + driver.title + "\n")
 
         video_count = 0
 
@@ -204,6 +209,7 @@ def scrape_playlist(url, driver_path, log_callback, text_widget, headless = True
         else:
             log("플레이리스트 정보를 가져오는데 실패했습니다.")
 
+        log("\n")
         if video_count is None:
             previous_loaded_number = 0
             while True:
@@ -244,6 +250,7 @@ def scrape_playlist(url, driver_path, log_callback, text_widget, headless = True
                 time.sleep(SCROLL_PAUSE_TIME)
             
         time.sleep(SCROLL_PAUSE_TIME)
+        log("\n")
 
         WebDriverWait(driver, 10).until(
             EC.presence_of_element_located((By.CSS_SELECTOR, "ytd-browse[page-subtype='playlist'] ytd-playlist-video-list-renderer"))
@@ -263,19 +270,27 @@ def scrape_playlist(url, driver_path, log_callback, text_widget, headless = True
             else:
                 video_elements = contents.select(".ytd-playlist-video-list-renderer")
                 log(f"총 {len(video_elements)}개의 비디오 요소 발견")
+                log(f"메타데이터 추출을 시작합니다.\n")
 
                 for idx, video in enumerate(video_elements, start=1):
                     # duration 추출 (예시: #overlays badge-shape div)
                     duration_div = video.select_one("#overlays badge-shape div")
-                    duration = duration_div.get_text(strip=True) if duration_div else "duration 없음"
+                    duration = duration_div.get_text(strip=True) if duration_div else "N/A"
 
                     # 영상 제목 추출 (a#video-title)
-                    title_a = video.select_one("a#video-title")
-                    title = title_a.get_text(strip=True) if title_a else "제목 없음"
+                    video_title_a = video.select_one("a#video-title")
+                    video_title = video_title_a.get_text(strip=True) if video_title_a else "N/A"
+                    video_url = get_full_url(host, video_title_a.get('href')) if video_title_a else "N/A"
+
+                    # 채널 추출
+                    channel_name_a = video.select_one("ytd-video-meta-block #metadata #byline-container ytd-channel-name#channel-name a")
+                    upload_channel_title = channel_name_a.get_text(strip=True) if channel_name_a else "N/A"
 
                     # 조회수 추출 (yt-formatted-string#video-info > span:first-child, 보통 "265K views" 형태)
-                    video_info = video.select_one("ytd-video-meta-block #metadata #byline-container yt-formatted-string#video-info span")
-                    viewership_text = video_info.get_text(strip=True) if video_info else None
+                    video_info_spans = video.select("ytd-video-meta-block #metadata #byline-container yt-formatted-string#video-info span")
+
+                    viewership_span = video_info_spans[0] if len(video_info_spans) > 0 else None
+                    viewership_text = viewership_span.get_text(strip=True) if viewership_span else None
                     if viewership_text:
                         if (matches := search_patterns[VIEWERSHIP_EN].match(viewership_text)):
                             viewership = matches.group(1).strip()
@@ -284,17 +299,66 @@ def scrape_playlist(url, driver_path, log_callback, text_widget, headless = True
                         else:
                             viewership = viewership_text
                     else:
-                        viewership = "조회수 없음"
+                        viewership = "N/A"
 
-                    log(f"[{idx}/{len(video_elements)}] - 제목: {title} / 길이: {duration} / 조회수: {viewership}")
+                    upload_date_span = video_info_spans[2] if len(video_info_spans) > 2 else None
+                    upload_date = upload_date_span.get_text(strip=True) if upload_date_span else "N/A"
+
+                    # 각 비디오 링크 탐색
+                    if video_url != "N/A":
+                        driver.get(video_url)
+                        
+                        expand_button = WebDriverWait(driver, 10).until(
+                            EC.element_to_be_clickable((
+                                By.CSS_SELECTOR,
+                                'ytd-app div#content ytd-page-manager#page-manager ytd-watch-metadata div#description tp-yt-paper-button#expand'
+                            ))
+                        )
+                        expand_button.click()
+                        time.sleep(CLICK_WAIT_TIME)
+
+                        html = driver.page_source
+                        soup = BeautifulSoup(html, 'lxml')
+
+                        video_meta_spans = soup.select('ytd-app div#content ytd-page-manager#page-manager ytd-watch-metadata div#description div#info-container yt-formatted-string#info span')
+                        
+                        viewership_span = video_meta_spans[0] if len(video_meta_spans) > 0 else None
+                        viewership_text = viewership_span.get_text(strip=True) if viewership_span else None
+                        if viewership_text:
+                            if (matches := search_patterns[VIEWERSHIP_EN].match(viewership_text)):
+                                viewership = matches.group(1).strip()
+                            elif (matches := search_patterns[VIEWERSHIP_KR].match(viewership_text)):
+                                viewership = matches.group(1).strip()
+                        
+                        uplaod_date_span = video_meta_spans[2] if len(video_meta_spans) > 2 else None
+                        upload_date_text = uplaod_date_span.get_text(strip=True) if uplaod_date_span else None
+                        if upload_date_text:
+                            if (matches := search_patterns[UPLOAD_DATE_EN].match(upload_date_text)):
+                                upload_date = matches.group(0).strip()
+                                upload_date = datetime.strptime(upload_date, "%b %d, %Y").strftime("%Y-%m-%d")
+                            elif (matches := search_patterns[UPLOAD_DATE_KR].match(upload_date_text)):
+                                upload_date = matches.group(0).strip()
+                                upload_date = datetime.strptime(upload_date, "%Y. %m. %d.").strftime("%Y-%m-%d")
+                            else:
+                                upload_date = upload_date_text
+
+
+                    log(f"[{idx}/{len(video_elements)}] 제목: {video_title} / 길이: {duration} / 채널명: {upload_channel_title} / 조회수: {viewership} / 업로드일: {upload_date} / 링크: {video_url}")
 
                     playlist_data['video_data'].append({
                         'no.': idx,
-                        'title': title,
+                        'title': video_title,
                         'duration': duration,
+                        'upload_date': upload_date,
+                        'upload_channel': upload_channel_title,
                         'viewership': viewership
                     })
 
+                    sleep_duration = random.uniform(3, 8)
+                    log(f"다음 영상 추출을 {sleep_duration} 초 후에 진행합니다.")
+                    time.sleep(sleep_duration)
+
+                log(f"\n메타데이터 추출 완료")
                 log(f'최종결과 - 총 비디오: {playlist_data["video_count"]} / 추출 시도: {len(video_elements)} / 추출 완료: {len(playlist_data["video_data"])}')
                 log("CSV 다운로드 준비가 완료되었습니다.")
     except Exception as e:
