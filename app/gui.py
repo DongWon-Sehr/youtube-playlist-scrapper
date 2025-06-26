@@ -7,6 +7,7 @@ from tkinter import messagebox, filedialog
 from app.scraper import scrape_playlist
 from app.utils import is_valid_url
 from app.utils import ROOT_DIR
+from app.config import APP_NAME, APP_VERSION
 
 # 전역 변수로 데이터를 저장
 scraped_video_data = []
@@ -98,7 +99,7 @@ def initialize_gui():
     global driver_option, driver_path_entry, driver_select_button
 
     root = tk.Tk()
-    root.title("PoPo v2.0.0")
+    root.title(f"{APP_NAME} v{APP_VERSION}")
 
     # 라디오 버튼 변수
     driver_option = tk.StringVar(value="intel")  # 기본값 Mac (Apple Chip)

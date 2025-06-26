@@ -1,5 +1,6 @@
 # -*- mode: python ; coding: utf-8 -*-
 from PyInstaller.utils.hooks import collect_data_files
+from app.config import APP_NAME, APP_VERSION
 
 datas = [
     ('app/drivers', 'app/drivers'),
@@ -17,7 +18,7 @@ a = Analysis(
     excludes=[],
     noarchive=False,
     optimize=2,
-    version='2.0.0',
+    version=APP_VERSION,
 )
 pyz = PYZ(a.pure)
 
@@ -40,17 +41,17 @@ exe = EXE(
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
-    version='2.0.0',
+    version=APP_VERSION,
 )
 app = BUNDLE(
     exe,
-    name='PoPo.app',
+    name=f'{APP_NAME}.app',
     icon='app/resources/icon.icns',
     bundle_identifier='com.its-newid.popo.mac.intel',
     info_plist={
-        'CFBundleName': 'PoPo',
-        'CFBundleShortVersionString': '2.0.0',
-        'CFBundleVersion': '2.0.0', 
+        'CFBundleName': APP_NAME,
+        'CFBundleShortVersionString': APP_VERSION,
+        'CFBundleVersion': APP_VERSION, 
         'NSHighResolutionCapable': 'True',
         'NSDocumentsFolderUsageDescription': 'This app needs access to your Documents folder to save or read files.',
         'NSDownloadsFolderUsageDescription': 'This app needs access to your Downloads folder.',
