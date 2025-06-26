@@ -48,6 +48,9 @@ app = BUNDLE(
     icon='app/resources/icon.icns',
     bundle_identifier='com.its-newid.popo.mac.intel',
     info_plist={
+        'CFBundleName': 'PoPo',
+        'CFBundleShortVersionString': '2.0.0',
+        'CFBundleVersion': '2.0.0', 
         'NSHighResolutionCapable': 'True',
         'NSDocumentsFolderUsageDescription': 'This app needs access to your Documents folder to save or read files.',
         'NSDownloadsFolderUsageDescription': 'This app needs access to your Downloads folder.',
